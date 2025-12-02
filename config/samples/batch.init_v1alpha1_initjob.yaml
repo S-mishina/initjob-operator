@@ -1,0 +1,21 @@
+apiVersion: batch.init.sre.example.com/v1alpha1
+kind: InitJob
+metadata:
+  labels:
+    app.kubernetes.io/name: initjob-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: sample-init
+spec:
+  jobTemplate:
+    metadata:
+      labels:
+        app: sample-init
+    spec:
+      backoffLimit: 3
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: init
+              image: busybox
+              command: ["sh", "-c", "echo init && sleep 5"]

@@ -1,0 +1,14 @@
+apiVersion: batch.init.sre.example.com/v1alpha1
+kind: InitJob
+metadata:
+  name: migrate-db
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: migration
+              image: alpine
+              command: ["sh", "-c", "echo running migration && ./migrate.sh"]

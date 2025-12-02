@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- batch.init_v1alpha1_initjob.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
