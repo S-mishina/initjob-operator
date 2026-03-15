@@ -189,18 +189,18 @@ func (r *InitJobReconciler) createJob(
 	}
 
 	// Copy labels from jobTemplate.metadata if present
-	if initJob.Spec.JobTemplate.ObjectMeta.Labels != nil {
+	if initJob.Spec.JobTemplate.Labels != nil {
 		if job.Labels == nil {
 			job.Labels = make(map[string]string)
 		}
-		for k, v := range initJob.Spec.JobTemplate.ObjectMeta.Labels {
+		for k, v := range initJob.Spec.JobTemplate.Labels {
 			job.Labels[k] = v
 		}
 	}
 
 	// Copy annotations from jobTemplate.metadata if present
-	if initJob.Spec.JobTemplate.ObjectMeta.Annotations != nil {
-		job.Annotations = initJob.Spec.JobTemplate.ObjectMeta.Annotations
+	if initJob.Spec.JobTemplate.Annotations != nil {
+		job.Annotations = initJob.Spec.JobTemplate.Annotations
 	}
 
 	// Set owner reference for garbage collection
