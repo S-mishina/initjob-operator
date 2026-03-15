@@ -105,6 +105,10 @@ jobs:
           **Full Changelog**: https://github.com/S-mishina/initjob-operator/compare/${PREV_TAG:-HEAD~10}...$VERSION
           EOF
 
+      - name: Build install.yaml
+        run: |
+          make build-installer IMG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.version }}
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -114,6 +118,7 @@ jobs:
           draft: ${{ inputs.draft }}
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: false
+          files: dist/install.yaml
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

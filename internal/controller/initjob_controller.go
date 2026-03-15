@@ -105,7 +105,7 @@ func (r *InitJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if apierrors.IsNotFound(err) {
 				existingJob = nil
 			} else {
-				log.Error(err, "failed to get existing Job")
+				log.Error(err, "failed to get existing Job", "jobName", initJob.Status.JobName)
 				return ctrl.Result{}, err
 			}
 		}
@@ -172,7 +172,10 @@ func (r *InitJobReconciler) createJob(
 	log := logf.FromContext(ctx)
 
 	// Generate Job name with short hash suffix
-	shortHash := hash[:8]
+	shortHash := hash
+	if len(shortHash) > 8 {
+		shortHash = shortHash[:8]
+	}
 	jobName := fmt.Sprintf("%s-%s", initJob.Name, shortHash)
 
 	// Build the Job
@@ -213,11 +216,13 @@ func (r *InitJobReconciler) createJob(
 	if err := r.Create(ctx, job); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("Job already exists", "jobName", jobName)
-			// Job already exists, update status
+			// Job already exists, restore status fields and update from Job
 			var existingJob batchv1.Job
 			if err := r.Get(ctx, client.ObjectKey{Namespace: initJob.Namespace, Name: jobName}, &existingJob); err != nil {
 				return ctrl.Result{}, err
 			}
+			initJob.Status.JobName = jobName
+			initJob.Status.LastAppliedJobTemplateHash = hash
 			return r.updateStatusFromJob(ctx, initJob, &existingJob)
 		}
 		log.Error(err, "failed to create Job")
@@ -271,6 +276,8 @@ func (r *InitJobReconciler) updateStatusFromJob(
 	log := logf.FromContext(ctx)
 
 	originalPhase := initJob.Status.Phase
+	originalSucceeded := initJob.Status.LastSucceeded
+	originalJobName := initJob.Status.JobName
 	var requeue bool
 
 	// Determine phase based on Job status
@@ -316,8 +323,11 @@ func (r *InitJobReconciler) updateStatusFromJob(
 		requeue = true
 	}
 
-	// Only update if something changed
-	if originalPhase != initJob.Status.Phase {
+	// Update if any status field changed
+	statusChanged := originalPhase != initJob.Status.Phase ||
+		originalSucceeded != initJob.Status.LastSucceeded ||
+		originalJobName != initJob.Status.JobName
+	if statusChanged {
 		log.Info("Updating InitJob status",
 			"oldPhase", originalPhase,
 			"newPhase", initJob.Status.Phase,
@@ -348,8 +358,8 @@ func (r *InitJobReconciler) setSpecChangedWhileRunningCondition(
 		Reason: "SpecChangedWhileRunning",
 		Message: fmt.Sprintf(
 			"spec.jobTemplate was changed while Job is running. New hash: %s, Current hash: %s. Delete or wait for Job to complete.",
-			newHash[:8],
-			initJob.Status.LastAppliedJobTemplateHash[:8],
+			truncateHash(newHash, 8),
+			truncateHash(initJob.Status.LastAppliedJobTemplateHash, 8),
 		),
 		LastTransitionTime: metav1.Now(),
 	})
@@ -378,6 +388,14 @@ func (r *InitJobReconciler) calculateJobTemplateHash(template *batchv1.JobTempla
 
 	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:]), nil
+}
+
+// truncateHash safely truncates a hash string to the specified length
+func truncateHash(hash string, length int) string {
+	if len(hash) <= length {
+		return hash
+	}
+	return hash[:length]
 }
 
 // Helper functions to check Job status

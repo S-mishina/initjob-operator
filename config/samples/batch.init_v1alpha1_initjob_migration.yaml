@@ -4,11 +4,15 @@ metadata:
   name: migrate-db
 spec:
   jobTemplate:
+    metadata:
+      labels:
+        app: migrate-db
     spec:
+      backoffLimit: 3
       template:
         spec:
           restartPolicy: Never
           containers:
             - name: migration
               image: alpine
-              command: ["sh", "-c", "echo running migration && ./migrate.sh"]
+              command: ["sh", "-c", "echo 'Running DB migration...' && echo 'CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY);' && echo 'Migration complete'"]

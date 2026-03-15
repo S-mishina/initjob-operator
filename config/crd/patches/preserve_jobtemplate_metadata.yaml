@@ -1,0 +1,6 @@
+# Patch to preserve labels/annotations in jobTemplate.metadata.
+# controller-gen generates jobTemplate.metadata as "type: object" without properties,
+# causing the API server to prune fields like labels and annotations.
+- op: add
+  path: /spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/jobTemplate/properties/metadata/x-kubernetes-preserve-unknown-fields
+  value: true

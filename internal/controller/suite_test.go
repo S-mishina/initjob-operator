@@ -65,8 +65,16 @@ var _ = BeforeSuite(func() {
 	// +kubebuilder:scaffold:scheme
 
 	By("bootstrapping test environment")
+	// Use kustomized CRDs (with patches like x-kubernetes-preserve-unknown-fields)
+	// if available, otherwise fall back to base CRDs
+	kustomizedCRDPath := filepath.Join("..", "..", "config", "crd", "kustomized")
+	baseCRDPath := filepath.Join("..", "..", "config", "crd", "bases")
+	crdPath := baseCRDPath
+	if _, err := os.Stat(kustomizedCRDPath); err == nil {
+		crdPath = kustomizedCRDPath
+	}
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{crdPath},
 		ErrorIfCRDPathMissing: true,
 	}
 
