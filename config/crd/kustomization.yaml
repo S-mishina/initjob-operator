@@ -2,7 +2,7 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/batch.init.sre.example.com_initjobs.yaml
+- bases/batch.init.sre.ryu-tech.blog_initjobs.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - batch.init.sre.example.com
+  - batch.init.sre.ryu-tech.blog
   resources:
   - initjobs
   verbs:
@@ -29,13 +29,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - batch.init.sre.example.com
+  - batch.init.sre.ryu-tech.blog
   resources:
   - initjobs/finalizers
   verbs:
   - update
 - apiGroups:
-  - batch.init.sre.example.com
+  - batch.init.sre.ryu-tech.blog
   resources:
   - initjobs/status
   verbs:

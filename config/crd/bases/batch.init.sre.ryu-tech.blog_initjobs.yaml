@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: initjobs.batch.init.sre.example.com
+  name: initjobs.batch.init.sre.ryu-tech.blog
 spec:
-  group: batch.init.sre.example.com
+  group: batch.init.sre.ryu-tech.blog
   names:
     kind: InitJob
     listKind: InitJobList

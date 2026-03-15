@@ -1,4 +1,4 @@
-apiVersion: batch.init.sre.example.com/v1alpha1
+apiVersion: batch.init.sre.ryu-tech.blog/v1alpha1
 kind: InitJob
 metadata:
   name: migrate-db

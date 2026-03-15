@@ -120,7 +120,7 @@ var _ = Describe("InitJob Controller", func() {
 			}
 			err = k8sClient.Get(ctx, jobKey, job)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(job.Labels["initjob.sre.example.com/name"]).To(Equal(resourceName))
+			Expect(job.Labels["initjob.sre.ryu-tech.blog/name"]).To(Equal(resourceName))
 		})
 
 		It("should not create a new Job when spec has not changed", func() {

@@ -1,7 +1,7 @@
 # This rule is not used by the project initjob-operator itself.
 # It is provided to allow the cluster admin to help manage permissions for users.
 #
-# Grants read-only access to batch.init.sre.example.com resources.
+# Grants read-only access to batch.init.sre.ryu-tech.blog resources.
 # This role is intended for users who need visibility into these resources
 # without permissions to modify them. It is ideal for monitoring purposes and limited-access viewing.
 
@@ -14,7 +14,7 @@ metadata:
   name: initjob-viewer-role
 rules:
 - apiGroups:
-  - batch.init.sre.example.com
+  - batch.init.sre.ryu-tech.blog
   resources:
   - initjobs
   verbs:
@@ -22,7 +22,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - batch.init.sre.example.com
+  - batch.init.sre.ryu-tech.blog
   resources:
   - initjobs/status
   verbs:

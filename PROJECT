@@ -3,7 +3,7 @@
 # and allow the plugins properly work.
 # More info: https://book.kubebuilder.io/reference/project-config.html
 cliVersion: 4.10.1
-domain: sre.example.com
+domain: sre.ryu-tech.blog
 layout:
 - go.kubebuilder.io/v4
 projectName: initjob-operator
@@ -13,7 +13,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: sre.example.com
+  domain: sre.ryu-tech.blog
   group: batch.init
   kind: InitJob
   path: github.com/S-mishina/initjob-operator/api/v1alpha1

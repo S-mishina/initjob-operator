@@ -66,6 +66,34 @@ test: manifests generate fmt vet setup-envtest ## Run tests.
 # CertManager is installed by default; skip with:
 # - CERT_MANAGER_INSTALL_SKIP=true
 KIND_CLUSTER ?= initjob-operator-test-e2e
+KIND_CLUSTER_DEV ?= initjob-operator-dev
+
+##@ Kind Cluster Management
+
+.PHONY: kind-create
+kind-create: ## Create a Kind cluster for development/testing
+	@command -v $(KIND) >/dev/null 2>&1 || { \
+		echo "Kind is not installed. Please install Kind manually."; \
+		exit 1; \
+	}
+	@case "$$($(KIND) get clusters)" in \
+		*"$(KIND_CLUSTER_DEV)"*) \
+			echo "Kind cluster '$(KIND_CLUSTER_DEV)' already exists. Skipping creation." ;; \
+		*) \
+			echo "Creating Kind cluster '$(KIND_CLUSTER_DEV)'..."; \
+			$(KIND) create cluster --name $(KIND_CLUSTER_DEV) ;; \
+	esac
+
+.PHONY: kind-delete
+kind-delete: ## Delete the Kind cluster for development/testing
+	@$(KIND) delete cluster --name $(KIND_CLUSTER_DEV)
+
+.PHONY: kind-load-image
+kind-load-image: docker-build ## Load docker image into Kind cluster
+	$(KIND) load docker-image ${IMG} --name $(KIND_CLUSTER_DEV)
+
+.PHONY: kind-deploy
+kind-deploy: kind-load-image install deploy ## Build, load image into Kind, and deploy controller
 
 .PHONY: setup-test-e2e
 setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
@@ -155,7 +183,7 @@ endif
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	@out="$$( "$(KUSTOMIZE)" build config/crd 2>/dev/null || true )"; \
-	if [ -n "$$out" ]; then echo "$$out" | "$(KUBECTL)" apply -f -; else echo "No CRDs to install; skipping."; fi
+	if [ -n "$$out" ]; then echo "$$out" | "$(KUBECTL)" apply --server-side -f -; else echo "No CRDs to install; skipping."; fi
 
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
@@ -165,7 +193,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && "$(KUSTOMIZE)" edit set image controller=${IMG}
-	"$(KUSTOMIZE)" build config/default | "$(KUBECTL)" apply -f -
+	"$(KUSTOMIZE)" build config/default | "$(KUBECTL)" apply --server-side -f -
 
 .PHONY: undeploy
 undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.

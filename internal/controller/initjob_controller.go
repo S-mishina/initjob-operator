@@ -43,9 +43,9 @@ type InitJobReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=batch.init.sre.example.com,resources=initjobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=batch.init.sre.example.com,resources=initjobs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=batch.init.sre.example.com,resources=initjobs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=batch.init.sre.ryu-tech.blog,resources=initjobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch.init.sre.ryu-tech.blog,resources=initjobs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=batch.init.sre.ryu-tech.blog,resources=initjobs/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -181,8 +181,8 @@ func (r *InitJobReconciler) createJob(
 			Name:      jobName,
 			Namespace: initJob.Namespace,
 			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "initjob-operator",
-				"initjob.sre.example.com/name": initJob.Name,
+				"app.kubernetes.io/managed-by":   "initjob-operator",
+				"initjob.sre.ryu-tech.blog/name": initJob.Name,
 			},
 		},
 		Spec: initJob.Spec.JobTemplate.Spec,

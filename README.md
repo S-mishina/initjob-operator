@@ -111,7 +111,7 @@ sequenceDiagram
 
 | Item | Value |
 |------|-------|
-| Group | `batch.init.sre.example.com` |
+| Group | `batch.init.sre.ryu-tech.blog` |
 | Version | `v1alpha1` |
 | Kind | `InitJob` |
 | Scope | Namespaced |
@@ -136,7 +136,7 @@ sequenceDiagram
 ## Example
 
 ```yaml
-apiVersion: batch.init.sre.example.com/v1alpha1
+apiVersion: batch.init.sre.ryu-tech.blog/v1alpha1
 kind: InitJob
 metadata:
   name: sample-init
@@ -210,7 +210,7 @@ kubectl describe initjob sample-init
 **Check the created Job:**
 
 ```sh
-kubectl get jobs -l initjob.sre.example.com/name=sample-init
+kubectl get jobs -l initjob.sre.ryu-tech.blog/name=sample-init
 ```
 
 ### Uninstallation
