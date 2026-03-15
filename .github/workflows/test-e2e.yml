@@ -2,7 +2,11 @@ name: E2E Tests
 
 on:
   push:
+    paths-ignore:
+      - '*.md'
   pull_request:
+    paths-ignore:
+      - '*.md'
 
 jobs:
   test-e2e:

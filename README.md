@@ -30,7 +30,7 @@ InitJob Operator is a Kubernetes operator that provides a **Custom Resource (Ini
 
 ### Option 1: kubectl apply (Recommended)
 
-You can install everything with a single command using the `install.yaml` included in each release. (Available from v0.0.3 onwards)
+You can install everything with a single command using the `install.yaml` included in each release. (Available from v1.0.0 onwards)
 
 ```sh
 # Replace <VERSION> with the desired release version (e.g., v0.1.0)
