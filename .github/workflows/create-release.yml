@@ -1,89 +1,150 @@
-name: Create Release
+name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Create as draft'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  create-release:
+  release:
+    name: Create Release
     runs-on: ubuntu-latest
+    environment: release
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check for draft releases
-        id: draft-check
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Validate version format
         run: |
-          DRAFT_COUNT=$(gh release list --json isDraft --jq '[.[] | select(.isDraft)] | length')
-          if [ "$DRAFT_COUNT" -gt 0 ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Draft release exists (${DRAFT_COUNT}), skipping."
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid version format. Expected format: v1.0.0 or v1.0.0-beta.1"
+            exit 1
           fi
 
-      - name: Determine next version
-        if: steps.draft-check.outputs.skip != 'true'
-        id: version
+      - name: Check if tag exists
         run: |
-          # Get latest tag
-          LATEST_TAG=$(git tag --sort=-v:refname | head -1)
-          if [ -z "$LATEST_TAG" ]; then
-            LATEST_TAG="v0.0.0"
+          if git rev-parse "${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag ${{ inputs.version }} already exists"
+            exit 1
           fi
 
-          # Parse current version
-          VERSION=${LATEST_TAG#v}
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
 
-          # Analyze commits since last tag
-          if [ "$LATEST_TAG" = "v0.0.0" ]; then
-            COMMITS=$(git log --pretty=format:"%s" HEAD)
-          else
-            COMMITS=$(git log --pretty=format:"%s" "${LATEST_TAG}..HEAD")
-          fi
-
-          if [ -z "$COMMITS" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Determine bump type from commit messages
-          if echo "$COMMITS" | grep -qiE "^BREAKING CHANGE|^[a-z]+(\(.+\))?!:"; then
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-          elif echo "$COMMITS" | grep -qiE "^feat(\(.+\))?:"; then
-            MINOR=$((MINOR + 1))
-            PATCH=0
-          else
-            PATCH=$((PATCH + 1))
-          fi
-
-          NEXT_TAG="v${MAJOR}.${MINOR}.${PATCH}"
-          echo "tag=${NEXT_TAG}" >> "$GITHUB_OUTPUT"
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-          echo "Next version: ${NEXT_TAG}"
-
-      - name: Create tag
-        if: steps.draft-check.outputs.skip != 'true' && steps.version.outputs.skip != 'true'
+      - name: Run tests before release
         run: |
-          git tag ${{ steps.version.outputs.tag }}
-          git push origin ${{ steps.version.outputs.tag }}
+          go mod tidy
+          make test
 
-      - name: Create GitHub Release
-        if: steps.draft-check.outputs.skip != 'true' && steps.version.outputs.skip != 'true'
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+          git push origin "${{ inputs.version }}"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating changelog from $PREV_TAG to $VERSION"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
+          else
+            echo "No previous tag found, including all commits"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)")
+          fi
+
+          cat << EOF > release_notes.md
+          ## What's Changed
+
+          $CHANGELOG
+
+          ## Installation
+
+          \`\`\`bash
+          kubectl apply -f https://github.com/S-mishina/initjob-operator/releases/download/$VERSION/install.yaml
+          \`\`\`
+
+          ## Container Image
+
+          \`\`\`bash
+          docker pull ghcr.io/s-mishina/initjob-operator:$VERSION
+          \`\`\`
+
+          **Full Changelog**: https://github.com/S-mishina/initjob-operator/compare/${PREV_TAG:-HEAD~10}...$VERSION
+          EOF
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
-          draft: false
-          prerelease: false
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          body_path: release_notes.md
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ inputs.version }}
+            type=sha
+            type=raw,value=latest,enable=${{ !inputs.prerelease }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
