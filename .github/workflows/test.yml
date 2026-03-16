@@ -10,18 +10,8 @@ on:
 
 jobs:
   test:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Clone the code
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: Running Tests
-        run: |
-          go mod tidy
-          make test
+    permissions:
+      contents: read
+    uses: S-mishina/reusable-workflows/.github/workflows/go-test.yml@main
+    with:
+      test-command: "make test"
