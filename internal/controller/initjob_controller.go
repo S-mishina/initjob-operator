@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -40,13 +41,15 @@ import (
 // InitJobReconciler reconciles a InitJob object
 type InitJobReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=batch.init.sre.ryu-tech.blog,resources=initjobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch.init.sre.ryu-tech.blog,resources=initjobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=batch.init.sre.ryu-tech.blog,resources=initjobs/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -70,6 +73,9 @@ func (r *InitJobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		log.Error(err, "unable to fetch InitJob")
 		return ctrl.Result{}, err
 	}
+
+	// Record the observed generation for status tracking
+	initJob.Status.ObservedGeneration = initJob.Generation
 
 	log.Info("Reconciling InitJob",
 		"initjob", initJob.Name,
@@ -230,6 +236,7 @@ func (r *InitJobReconciler) createJob(
 	}
 
 	log.Info("Job created successfully", "jobName", jobName)
+	r.Recorder.Eventf(initJob, "Normal", "JobCreated", "Created Job %s", jobName)
 
 	// Update InitJob status
 	initJob.Status.JobName = jobName
@@ -295,6 +302,9 @@ func (r *InitJobReconciler) updateStatusFromJob(
 			Message:            "Job succeeded",
 			LastTransitionTime: metav1.Now(),
 		})
+		if originalPhase != batchinitv1alpha1.InitJobPhaseSucceeded {
+			r.Recorder.Eventf(initJob, "Normal", "JobSucceeded", "Job %s succeeded", initJob.Status.JobName)
+		}
 	case isJobFailed(job):
 		initJob.Status.Phase = batchinitv1alpha1.InitJobPhaseFailed
 		initJob.Status.LastSucceeded = false
@@ -308,6 +318,9 @@ func (r *InitJobReconciler) updateStatusFromJob(
 			Message:            "Job failed",
 			LastTransitionTime: metav1.Now(),
 		})
+		if originalPhase != batchinitv1alpha1.InitJobPhaseFailed {
+			r.Recorder.Eventf(initJob, "Warning", "JobFailed", "Job %s failed", initJob.Status.JobName)
+		}
 	case isJobActive(job):
 		initJob.Status.Phase = batchinitv1alpha1.InitJobPhaseRunning
 		meta.SetStatusCondition(&initJob.Status.Conditions, metav1.Condition{
@@ -358,11 +371,15 @@ func (r *InitJobReconciler) setSpecChangedWhileRunningCondition(
 		Reason: "SpecChangedWhileRunning",
 		Message: fmt.Sprintf(
 			"spec.jobTemplate was changed while Job is running. New hash: %s, Current hash: %s. Delete or wait for Job to complete.",
-			truncateHash(newHash, 8),
-			truncateHash(initJob.Status.LastAppliedJobTemplateHash, 8),
+			truncateHash(newHash),
+			truncateHash(initJob.Status.LastAppliedJobTemplateHash),
 		),
 		LastTransitionTime: metav1.Now(),
 	})
+
+	r.Recorder.Eventf(initJob, "Warning", "SpecChangedWhileRunning",
+		"spec.jobTemplate changed while Job is running (current: %s, new: %s)",
+		truncateHash(initJob.Status.LastAppliedJobTemplateHash), truncateHash(newHash))
 
 	if err := r.Status().Update(ctx, initJob); err != nil {
 		log.Error(err, "failed to update InitJob status with SpecChangedWhileRunning condition")
@@ -390,12 +407,14 @@ func (r *InitJobReconciler) calculateJobTemplateHash(template *batchv1.JobTempla
 	return hex.EncodeToString(hash[:]), nil
 }
 
-// truncateHash safely truncates a hash string to the specified length
-func truncateHash(hash string, length int) string {
-	if len(hash) <= length {
+const hashDisplayLength = 8
+
+// truncateHash safely truncates a hash string for display purposes
+func truncateHash(hash string) string {
+	if len(hash) <= hashDisplayLength {
 		return hash
 	}
-	return hash[:length]
+	return hash[:hashDisplayLength]
 }
 
 // Helper functions to check Job status
@@ -418,6 +437,7 @@ func isJobFailed(job *batchv1.Job) bool {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *InitJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Recorder = mgr.GetEventRecorderFor("initjob-controller")
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&batchinitv1alpha1.InitJob{}).
 		Owns(&batchv1.Job{}).

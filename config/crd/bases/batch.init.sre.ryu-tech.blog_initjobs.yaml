@@ -9096,6 +9096,11 @@ spec:
                 description: lastSucceeded indicates whether the last Job execution
                   succeeded
                 type: boolean
+              observedGeneration:
+                description: observedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
+                type: integer
               phase:
                 description: phase represents the current phase of the InitJob (Pending/Running/Succeeded/Failed)
                 enum:
