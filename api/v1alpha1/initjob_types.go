@@ -56,6 +56,10 @@ type InitJobSpec struct {
 
 // InitJobStatus defines the observed state of InitJob.
 type InitJobStatus struct {
+	// observedGeneration is the most recent generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// phase represents the current phase of the InitJob (Pending/Running/Succeeded/Failed)
 	// +optional
 	Phase InitJobPhase `json:"phase,omitempty"`
