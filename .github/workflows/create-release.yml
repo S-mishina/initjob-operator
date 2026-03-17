@@ -31,7 +31,7 @@ jobs:
       environment: release
       pre-release-steps: "make build-installer IMG=ghcr.io/s-mishina/initjob-operator:${{ inputs.version }}"
       release-assets: dist/install.yaml
-      install-instructions: "kubectl apply -f https://github.com/S-mishina/initjob-operator/releases/download/${VERSION}/install.yaml"
+      install-instructions: "```kubectl apply --server-side -f https://github.com/S-mishina/initjob-operator/releases/download/${VERSION}/install.yaml```"
       docker-build: true
       docker-image-name: s-mishina/initjob-operator
       docker-metadata-tags: |
